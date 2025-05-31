@@ -136,6 +136,38 @@ heroku restart
 
 ---
 
+## ⚠️ **Lỗi thường gặp và cách khắc phục:**
+
+### **1. TokenInvalid Error:**
+```
+Error [TokenInvalid]: An invalid token was provided.
+```
+
+**Nguyên nhân:**
+- Token Discord không đúng hoặc hết hạn
+- Environment variable không được set
+
+**Cách sửa:**
+1. Vào [Discord Developer Portal](https://discord.com/developers/applications)
+2. Chọn bot → Tab **Bot** → **Reset Token**
+3. Copy token mới (format: `MTxxx...`)
+4. Set lại environment variable `DISCORD_TOKEN` trên platform deploy
+5. Restart service
+
+### **2. HTTP 429 (Too Many Requests):**
+```
+http status: 429
+```
+
+**Nguyên nhân:** YouTube chặn do quá nhiều requests
+
+**Cách sửa:** Bot đã có retry mechanism, đợi vài phút sẽ tự khôi phục
+
+### **3. No open ports detected (Render):**
+**Cách sửa:** Chọn **Background Worker** thay vì **Web Service**
+
+---
+
 ## 🎯 Khuyến nghị:
 
 1. **Railway**: Tốt nhất cho beginners, setup đơn giản
