@@ -1,0 +1,36 @@
+{
+  "name": "happy-house-bot",
+  "version": "1.0.0",
+  "description": "Happy House - Discord Music Bot",
+  "main": "index.js",  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "deploy:railway": "railway up",
+    "deploy:heroku": "git push heroku main",
+    "docker:build": "docker build -t happy-house-bot .",
+    "docker:run": "docker run -d --name bot --env-file .env happy-house-bot"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "music",
+    "youtube"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "@discordjs/opus": "^0.10.0",
+    "@discordjs/voice": "^0.17.0",
+    "@distube/ytdl-core": "^4.16.10",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+    "ffmpeg-static": "^5.2.0",
+    "libsodium-wrappers": "^0.7.15",
+    "opusscript": "^0.0.8",
+    "yt-search": "^2.13.1",
+    "ytdl-core": "^4.11.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
