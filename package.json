@@ -2,7 +2,8 @@
   "name": "happy-house-bot",
   "version": "1.0.0",
   "description": "Happy House - Discord Music Bot",
-  "main": "index.js",  "scripts": {
+  "main": "index.js",
+  "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
     "deploy:railway": "railway up",
