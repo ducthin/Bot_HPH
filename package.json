@@ -18,8 +18,7 @@
     "youtube"
   ],
   "author": "Your Name",
-  "license": "MIT",
-  "dependencies": {
+  "license": "MIT",  "dependencies": {
     "@discordjs/opus": "^0.10.0",
     "@discordjs/voice": "^0.17.0",
     "discord.js": "^14.14.1",
@@ -28,9 +27,7 @@
     "libsodium-wrappers": "^0.7.15",
     "opusscript": "^0.0.8",
     "youtube-dl-exec": "^3.0.22",
-    "yt-dlp-wrap": "^2.3.12",
-    "yt-search": "^2.13.1",
-    "ytdl-core": "^4.11.5"
+    "yt-search": "^2.13.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

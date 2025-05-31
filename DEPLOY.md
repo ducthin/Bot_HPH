@@ -5,6 +5,12 @@
 - Có Discord Bot Token
 - Có file .env với DISCORD_TOKEN
 
+## 🚨 Lưu ý quan trọng về yt-dlp:
+Bot sử dụng `youtube-dl-exec` với yt-dlp backend. Một số lỗi thường gặp:
+- `--no-extract-flat` không tồn tại → Đã được fix trong code
+- `--extract-flat` thay vì `extractFlat: false`
+- Đảm bảo các options yt-dlp đúng syntax
+
 ## 🌟 Phương pháp 1: Railway (Khuyến nghị - Miễn phí)
 
 ### Bước 1: Chuẩn bị
@@ -163,7 +169,32 @@ http status: 429
 
 **Cách sửa:** Bot đã có retry mechanism, đợi vài phút sẽ tự khôi phục
 
-### **3. No open ports detected (Render):**
+### **3. YouTube-dl errors:**
+```
+yt-dlp.exe: error: no such option: --no-extract-flat
+```
+
+**Nguyên nhân:** Options không đúng syntax của yt-dlp
+
+**Cách sửa:** 
+- Đã được fix trong code mới nhất
+- Đảm bảo sử dụng `youtube-dl-exec` version mới
+- Kiểm tra lại các options trong `youtubedl()` calls
+
+### **4. Audio streaming errors:**
+```
+Could not extract functions
+Invalid URL
+```
+
+**Nguyên nhân:** YouTube parsing errors hoặc URL không hợp lệ
+
+**Cách sửa:**
+- Bot đã có retry mechanism và fallback
+- Thử với URLs khác
+- Restart bot nếu lỗi liên tục
+
+### **5. No open ports detected (Render):**
 **Cách sửa:** Chọn **Background Worker** thay vì **Web Service**
 
 ---
