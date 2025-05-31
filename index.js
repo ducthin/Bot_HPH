@@ -55,11 +55,11 @@ async function playSong(guildId, song) {
     const serverQueue = queues.get(guildId);
     
     if (!song) {
-        console.log('Hàng đợi trống, ngắt kết nối voice...');
-        if (serverQueue.connection) {
-            serverQueue.connection.destroy();
+        console.log('Hàng đợi trống, bot sẽ ở lại voice channel...');
+        // Không ngắt kết nối, chỉ dừng player
+        if (serverQueue && serverQueue.player) {
+            serverQueue.player.stop();
         }
-        queues.delete(guildId);
         return;
     }
 
@@ -362,8 +362,7 @@ client.on('messageCreate', async (message) => {
         serverQueue.volume = volume;
         message.reply(`🔊 Đã đặt âm lượng thành ${volume}%`);
     }
-    
-    else if (command === 'help' || command === 'h') {
+      else if (command === 'help' || command === 'h') {
         const embed = new EmbedBuilder()
             .setColor('#0099ff')
             .setTitle('🤖 Happy House Bot - Hướng dẫn')
@@ -371,6 +370,7 @@ client.on('messageCreate', async (message) => {
                 { name: '🎵 !play <tên bài hát/URL>', value: 'Phát nhạc từ YouTube', inline: false },
                 { name: '⏭️ !skip', value: 'Bỏ qua bài hát hiện tại', inline: false },
                 { name: '⏹️ !stop', value: 'Dừng phát nhạc và rời voice', inline: false },
+                { name: '👋 !leave', value: 'Rời khỏi voice channel', inline: false },
                 { name: '📝 !queue', value: 'Xem hàng đợi nhạc', inline: false },
                 { name: '🔊 !volume <0-100>', value: 'Điều chỉnh âm lượng', inline: false },
                 { name: '❓ !help', value: 'Hiển thị hướng dẫn này', inline: false }
@@ -378,6 +378,19 @@ client.on('messageCreate', async (message) => {
             .setFooter({ text: 'Happy House Bot - Music for everyone!' });
         
         message.channel.send({ embeds: [embed] });
+    }
+    
+    else if (command === 'leave' || command === 'disconnect') {
+        const serverQueue = queues.get(message.guild.id);
+        if (!serverQueue) {
+            return message.reply('❌ Bot không ở trong voice channel nào!');
+        }
+        
+        if (serverQueue.connection) {
+            serverQueue.connection.destroy();
+        }
+        queues.delete(message.guild.id);
+        message.reply('👋 Đã rời khỏi voice channel!');
     }
 });
 
