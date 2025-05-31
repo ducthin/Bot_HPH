@@ -4,6 +4,38 @@ const ytdl = require('@distube/ytdl-core');
 const yts = require('yt-search');
 require('dotenv').config();
 
+// Danh sách User Agents để tránh bị chặn
+const USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0'
+];
+
+// Hàm lấy random User Agent
+function getRandomUserAgent() {
+    return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
+// Hàm delay
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Hàm thử lại với delay
+async function retryWithDelay(fn, maxRetries = 3, delayMs = 2000) {
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await fn();
+        } catch (error) {
+            if (i === maxRetries - 1) throw error;
+            
+            console.log(`Thử lần ${i + 1} thất bại, đợi ${delayMs}ms rồi thử lại...`);
+            await delay(delayMs * (i + 1)); // Tăng delay mỗi lần thử
+        }
+    }
+}
+
 // Khởi tạo bot với các intents cần thiết
 const client = new Client({
     intents: [
@@ -459,33 +491,42 @@ async function playSong(guildId, song) {
         if (videoId) {
             try {
                 const standardYoutubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
-                console.log('URL chuẩn hóa:', standardYoutubeUrl);                // Sử dụng @distube/ytdl-core để stream video từ YouTube
+                console.log('URL chuẩn hóa:', standardYoutubeUrl);                // Sử dụng @distube/ytdl-core để stream video từ YouTube với retry
                 try {
                     // Validate URL first
                     if (!ytdl.validateURL(standardYoutubeUrl)) {
                         throw new Error('URL YouTube không hợp lệ');
                     }
                     
-                    console.log('Đang tạo stream với @distube/ytdl-core...');
+                    console.log('Đang tạo stream với @distube/ytdl-core (có retry)...');
                     
-                    // Tạo stream từ video với cấu hình tối ưu
-                    const stream = ytdl(standardYoutubeUrl, {
-                        filter: 'audioonly',
-                        quality: 'highestaudio',
-                        highWaterMark: 1 << 25, // 32MB buffer
-                        requestOptions: {
-                            headers: {
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    // Tạo stream với retry mechanism
+                    const stream = await retryWithDelay(async () => {
+                        console.log('Đang thử tạo stream...');
+                        return ytdl(standardYoutubeUrl, {
+                            filter: 'audioonly',
+                            quality: 'lowestaudio', // Dùng quality thấp hơn để giảm tải
+                            highWaterMark: 1 << 20, // Giảm buffer xuống 1MB
+                            requestOptions: {
+                                headers: {
+                                    'User-Agent': getRandomUserAgent(),
+                                    'Accept': '*/*',
+                                    'Accept-Encoding': 'gzip, deflate',
+                                    'Accept-Language': 'en-US,en;q=0.9',
+                                    'Connection': 'keep-alive'
+                                }
                             }
-                        }
-                    });
+                        });
+                    }, 3, 3000); // 3 lần thử, delay 3 giây
                     
-                    console.log('Stream được tạo thành công!');
+                    console.log('Stream được tạo thành công sau retry!');
                     
                     // Xử lý lỗi stream
                     stream.on('error', (error) => {
                         console.error('Stream error:', error);
-                        // Nếu gặp lỗi, thử fallback
+                        if (error.statusCode === 429) {
+                            console.log('Gặp lỗi 429, thử fallback search...');
+                        }
                         serverQueue.player.emit('error', error);
                     });
                     
@@ -538,10 +579,12 @@ async function playSong(guildId, song) {
                     
                 } catch (streamError) {
                     console.error('Lỗi khi tạo stream:', streamError);
-                    
-                    // Thử phương pháp thay thế
+                      // Thử phương pháp thay thế với delay
                     try {
-                        console.log('Thử phương pháp thay thế...');
+                        console.log('Thử phương pháp thay thế sau khi gặp lỗi 429...');
+                        
+                        // Delay trước khi thử fallback
+                        await delay(5000); // Đợi 5 giây
                         
                         // Tìm kiếm video bằng tên
                         const results = await yts(song.title);
@@ -549,26 +592,49 @@ async function playSong(guildId, song) {
                             throw new Error('Không tìm thấy video thay thế');
                         }
                         
-                        const altVideo = results.videos[0];
-                        console.log('Đã tìm thấy video thay thế:', altVideo.url);                        console.log('Đang tạo stream cho video thay thế...');
-                        
-                        const stream = ytdl(altVideo.url, {
-                            filter: 'audioonly',
-                            quality: 'highestaudio',
-                            highWaterMark: 1 << 25,
-                            requestOptions: {
-                                headers: {
-                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                                }
+                        // Thử nhiều video thay thế
+                        let successfulStream = null;
+                        for (let i = 0; i < Math.min(3, results.videos.length); i++) {
+                            const altVideo = results.videos[i];
+                            console.log(`Thử video thay thế ${i + 1}: ${altVideo.url}`);
+                            
+                            try {
+                                await delay(2000); // Delay giữa các thử nghiệm
+                                
+                                const stream = await retryWithDelay(async () => {
+                                    return ytdl(altVideo.url, {
+                                        filter: 'audioonly',
+                                        quality: 'lowestaudio', // Dùng quality thấp
+                                        highWaterMark: 1 << 19, // Buffer nhỏ hơn (512KB)
+                                        requestOptions: {
+                                            headers: {
+                                                'User-Agent': getRandomUserAgent(),
+                                                'Accept': '*/*',
+                                                'Accept-Language': 'en-US,en;q=0.9'
+                                            }
+                                        }
+                                    });
+                                }, 2, 4000); // 2 lần thử, delay 4 giây
+                                
+                                successfulStream = stream;
+                                console.log(`Tạo stream thành công với video thay thế ${i + 1}!`);
+                                break;
+                            } catch (altError) {
+                                console.log(`Video thay thế ${i + 1} thất bại:`, altError.message);
+                                continue;
                             }
-                        });
+                        }
                         
-                        stream.on('error', (error) => {
+                        if (!successfulStream) {
+                            throw new Error('Không thể tạo stream từ bất kỳ video thay thế nào');
+                        }
+                        
+                        successfulStream.on('error', (error) => {
                             console.error('Alternative stream error:', error);
                             throw error;
                         });
                         
-                        const resource = createAudioResource(stream, {
+                        const resource = createAudioResource(successfulStream, {
                             inputType: 'arbitrary',
                             inlineVolume: true
                         });
@@ -591,10 +657,15 @@ async function playSong(guildId, song) {
                             )
                             .setFooter({ text: '🎵 Happy House - Mang âm nhạc đến mọi người!' });
                         
-                        serverQueue.textChannel.send({ embeds: [playingEmbed] });
-                    } catch (altError) {
+                        serverQueue.textChannel.send({ embeds: [playingEmbed] });                    } catch (altError) {
                         console.error('Phương pháp thay thế cũng thất bại:', altError);
-                        serverQueue.textChannel.send(`❌ Không thể phát bài hát: ${song.title}`);
+                        
+                        let errorMessage = `❌ Không thể phát bài hát: ${song.title}`;
+                        if (altError.statusCode === 429 || streamError.statusCode === 429) {
+                            errorMessage += '\n⚠️ YouTube đang giới hạn requests. Vui lòng thử lại sau vài phút.';
+                        }
+                        
+                        serverQueue.textChannel.send(errorMessage);
                         serverQueue.songs.shift();
                         playSong(guildId, serverQueue.songs[0]);
                     }
